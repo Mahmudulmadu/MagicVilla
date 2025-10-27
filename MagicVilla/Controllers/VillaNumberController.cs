@@ -1,5 +1,7 @@
-﻿using MagicVilla.Domain.Entities;
+﻿using MagicVilla.Application.Common.Interface;
+using MagicVilla.Domain.Entities;
 using MagicVilla.Infrastructure.Data;
+using MagicVilla.Infrastructure.Repository;
 using MagicVilla.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -9,15 +11,15 @@ namespace MagicVilla.Controllers
 {
     public class VillaNumberController : Controller
     {
-        private readonly ApplicationDbContext _db;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public VillaNumberController(ApplicationDbContext db)
+        public VillaNumberController(IUnitOfWork unitOfWork)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
         }
         public IActionResult Index()
         {
-            var villaNumbers = _db.VillaNumbers.Include(u=>u.Villa).ToList();
+            var villaNumbers = _unitOfWork.VillaNumber.GetAll(includeProperties: "Villa");
             return View(villaNumbers);
         }
 
@@ -26,7 +28,7 @@ namespace MagicVilla.Controllers
 
             VillaNumberVM villaNumberVM = new()
             {
-                VillaList = _db.Villas.ToList().Select(i => new SelectListItem
+                VillaList = _unitOfWork.Villa.GetAll().ToList().Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()
@@ -40,12 +42,12 @@ namespace MagicVilla.Controllers
         [HttpPost]
         public IActionResult Create(VillaNumberVM obj)
         {
-            bool roomNumberExists = _db.VillaNumbers.Any(u => u.VillaNo == obj.VillaNumber.VillaNo);
+            bool roomNumberExists = _unitOfWork.VillaNumber.Any(u => u.VillaNo == obj.VillaNumber.VillaNo);
            
             if (ModelState.IsValid && !roomNumberExists)
             {
-                _db.VillaNumbers.Add(obj.VillaNumber);
-                _db.SaveChanges();
+                _unitOfWork.VillaNumber.Add(obj.VillaNumber);
+                _unitOfWork.Save();
                 TempData["success"] = "The Villa Number has been Created Successfully.";
                 return RedirectToAction("Index", "VillaNumber");
             }
@@ -53,7 +55,7 @@ namespace MagicVilla.Controllers
             {
                 TempData["error"] = "The Villa Number already exists.";
             }
-            obj.VillaList = _db.Villas.ToList().Select(u => new SelectListItem
+            obj.VillaList = _unitOfWork.Villa.GetAll().Select(u => new SelectListItem
             {
                 Text = u.Name,
                 Value = u.Id.ToString()
@@ -68,12 +70,12 @@ namespace MagicVilla.Controllers
         {
             VillaNumberVM villaNumberVM = new()
             {
-                VillaList = _db.Villas.ToList().Select(i => new SelectListItem
+                VillaList = _unitOfWork.Villa.GetAll().Select(i => new SelectListItem
                 {
                     Text = i.Name,
                     Value = i.Id.ToString()
                 }),
-                VillaNumber = _db.VillaNumbers.FirstOrDefault(u => u.VillaNo == villaNumberId)
+                VillaNumber = _unitOfWork.VillaNumber.Get(u => u.VillaNo == villaNumberId)
 
             };
             if (villaNumberVM.VillaNumber is null)
@@ -91,13 +93,13 @@ namespace MagicVilla.Controllers
 
             if (ModelState.IsValid)
             {
-                _db.VillaNumbers.Update(villaNumberVM.VillaNumber);
-                _db.SaveChanges();
+                _unitOfWork.VillaNumber.Update(villaNumberVM.VillaNumber);
+                _unitOfWork.Save();
                 TempData["success"] = "The Villa Number has been Updated Successfully.";
                 return RedirectToAction("Index", "VillaNumber");
             }
            
-            villaNumberVM.VillaList = _db.Villas.ToList().Select(u => new SelectListItem
+            villaNumberVM.VillaList = _unitOfWork.Villa.GetAll().Select(u => new SelectListItem
             {
                 Text = u.Name,
                 Value = u.Id.ToString()
@@ -110,30 +112,42 @@ namespace MagicVilla.Controllers
         }
 
 
-        public IActionResult Delete(int villaId)
+        public IActionResult Delete(int villaNumberId)
         {
-            Villa? obj = _db.Villas.FirstOrDefault(u => u.Id == villaId);
-            if (obj is null)
+            VillaNumberVM villaNumberVM = new()
+            {
+                VillaList = _unitOfWork.Villa.GetAll().Select(i => new SelectListItem
+                {
+                    Text = i.Name,
+                    Value = i.Id.ToString()
+                }),
+                VillaNumber = _unitOfWork.VillaNumber.Get(u => u.VillaNo == villaNumberId)
+
+            };
+            if (villaNumberVM.VillaNumber is null)
             {
                 return RedirectToAction("Error", "Home");
             }
-            return View(obj);
+            return View(villaNumberVM);
         }
 
         [HttpPost]
-        public IActionResult Delete(Villa obj)
+        public IActionResult Delete(VillaNumberVM villaNumberVM)
         {
-            Villa? villaFromDb = _db.Villas.FirstOrDefault(u => u.Id == obj.Id);
 
-            if (villaFromDb is not null)
+            VillaNumber? villaNumberFromDb = _unitOfWork.VillaNumber.Get(u => u.VillaNo == villaNumberVM.VillaNumber.VillaNo);
+            if (villaNumberFromDb is null)
             {
-                _db.Villas.Remove(villaFromDb);
-                _db.SaveChanges();
-                TempData["success"] = "The Villa has been deleted Successfully.";
-                return RedirectToAction("Index", "Villa");
+                return RedirectToAction("Error", "Home");
             }
-            TempData["error"] = "The Villa isn't Deleted.";
-            return View();
+
+            _unitOfWork.VillaNumber.Remove(villaNumberFromDb);
+            _unitOfWork.Save();
+            TempData["success"] = "The Villa Number has been Deleted Successfully.";
+            return RedirectToAction("Index", "VillaNumber");
+
+           
+
 
 
         }

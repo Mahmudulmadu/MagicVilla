@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\MagicVilla.Domain\MagicVilla.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MagicVilla.Domain\MagicVilla.Domain.csproj" />
+    <ProjectReference Include="..\MagicVilla.Application\MagicVilla.Application.csproj" />
   </ItemGroup>
 
 </Project>
